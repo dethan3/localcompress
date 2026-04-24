@@ -300,11 +300,15 @@ compressButton.addEventListener("click", async () => {
   const profile = profileSelect.value;
   const optimizeStructure = structureToggle.checked;
 
+  let currentIndex = 0;
+  const totalValid = state.files.filter((item) => item.kind).length;
+
   for (const item of state.files) {
     if (!item.kind) {
       continue;
     }
 
+    currentIndex += 1;
     revokeDownload(item);
     clearOutput(item);
     const isOffice = isOfficeKind(item.kind);
@@ -326,10 +330,10 @@ compressButton.addEventListener("click", async () => {
       statusLabel: "压缩中",
       tone: "processing",
       message: isOffice
-        ? `JSZip 正在解包 ${item.kind.toUpperCase()}，并按 ${profile} 档位重压缩图片。`
+        ? `JSZip 正在解包 ${item.kind.toUpperCase()}（${currentIndex}/${totalValid}），并按 ${profile} 档位重压缩图片。`
         : optimizeStructure
-          ? `Ghostscript 压缩后将执行 QPDF 结构优化，使用 ${profile} 档位。`
-          : `Ghostscript WASM 正在处理，使用 ${profile} 档位。`,
+          ? `Ghostscript 压缩后将执行 QPDF 结构优化（${currentIndex}/${totalValid}），使用 ${profile} 档位。`
+          : `Ghostscript WASM 正在处理（${currentIndex}/${totalValid}），使用 ${profile} 档位。`,
       resultBytes: 0,
       outputName: "",
       downloadUrl: "",

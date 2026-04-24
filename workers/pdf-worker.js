@@ -396,27 +396,25 @@ const replaceZipTextReferences = async (zip, fromPath, toPath) => {
     (entry) => !entry.dir && /\.rels$/i.test(entry.name)
   );
 
-  await Promise.all(
-    textEntries.map(async (entry) => {
-      const original = await entry.async("string");
-      const sourceDir = getRelationshipSourceDir(entry.name);
-      const updated = original.replace(
-        /\bTarget=(["'])([^"']+)\1/g,
-        (match, quote, target) => {
-          if (resolveRelationshipTarget(entry.name, unescapeXmlAttribute(target)) !== normalizeZipPath(fromPath)) {
-            return match;
-          }
-
-          const relativeTarget = buildRelativeZipPath(sourceDir, toPath);
-          return `Target=${quote}${escapeXmlAttribute(relativeTarget)}${quote}`;
+  for (const entry of textEntries) {
+    const original = await entry.async("string");
+    const sourceDir = getRelationshipSourceDir(entry.name);
+    const updated = original.replace(
+      /\bTarget=(["'])([^"']+)\1/g,
+      (match, quote, target) => {
+        if (resolveRelationshipTarget(entry.name, unescapeXmlAttribute(target)) !== normalizeZipPath(fromPath)) {
+          return match;
         }
-      );
 
-      if (updated !== original) {
-        zip.file(entry.name, updated);
+        const relativeTarget = buildRelativeZipPath(sourceDir, toPath);
+        return `Target=${quote}${escapeXmlAttribute(relativeTarget)}${quote}`;
       }
-    })
-  );
+    );
+
+    if (updated !== original) {
+      zip.file(entry.name, updated);
+    }
+  }
 };
 
 const ensureJpegContentType = async (zip) => {
