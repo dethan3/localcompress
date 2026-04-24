@@ -7,7 +7,10 @@ import JSZip from "jszip";
 let jpegModulePromise;
 const getJpegEncoder = async () => {
   if (!jpegModulePromise) {
-    jpegModulePromise = import("@jsquash/jpeg");
+    jpegModulePromise = import("@jsquash/jpeg").catch((err) => {
+      jpegModulePromise = null;
+      throw err;
+    });
   }
 
   const { encode } = await jpegModulePromise;
@@ -17,7 +20,10 @@ const getJpegEncoder = async () => {
 let oxipngModulePromise;
 const getOxipngEncoder = async () => {
   if (!oxipngModulePromise) {
-    oxipngModulePromise = import("@jsquash/oxipng");
+    oxipngModulePromise = import("@jsquash/oxipng").catch((err) => {
+      oxipngModulePromise = null;
+      throw err;
+    });
   }
 
   const { optimise } = await oxipngModulePromise;
