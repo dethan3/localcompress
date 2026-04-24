@@ -247,8 +247,8 @@ h2 {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(170px, 220px) 1fr auto;
-  gap: 14px;
+  grid-template-columns: minmax(170px, 210px) minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: end;
   margin-top: 18px;
 }
@@ -263,6 +263,7 @@ h2 {
 .checkbox-field span {
   font-size: 0.92rem;
   font-weight: 600;
+  overflow-wrap: break-word;
 }
 
 select {
@@ -275,11 +276,13 @@ select {
 
 .checkbox-field {
   min-height: 48px;
+  min-width: 0;
   align-content: center;
   padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.62);
+  overflow-wrap: break-word;
 }
 
 .disabled-field {
