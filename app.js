@@ -201,26 +201,10 @@ const createItem = (file) => ({
 
 const addFiles = (incomingFiles) => {
   const supportedFiles = incomingFiles.filter((file) => getFileKind(file));
-  const rejectedCount = incomingFiles.length - supportedFiles.length;
 
   supportedFiles.forEach((file) => {
     state.files.push(createItem(file));
   });
-
-  if (rejectedCount > 0) {
-    state.files.push({
-      id: crypto.randomUUID(),
-      file: new File([""], `${rejectedCount} 个不支持的文件`, { type: "text/plain" }),
-      kind: "",
-      statusLabel: "已忽略",
-      tone: "error",
-      message: "当前只接收 PDF、PPTX 和 DOCX 文件。",
-      downloadUrl: "",
-      outputBlob: null,
-      outputName: "",
-      resultBytes: 0,
-    });
-  }
 
   renderFiles();
 };
