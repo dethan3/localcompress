@@ -12,12 +12,13 @@ const fileInput = document.querySelector("#file-input");
 const fileList = document.querySelector("#file-list");
 const queueSummary = document.querySelector("#queue-summary");
 const profileSelect = document.querySelector("#profile-select");
+const structureToggle = document.querySelector("#structure-toggle");
 const compressButton = document.querySelector("#compress-button");
 const engineStatus = document.querySelector("#engine-status");
 const rowTemplate = document.querySelector("#file-row-template");
 
 const formatBytes = (bytes) => {
-  if (!Number.isFinite(bytes) || bytes <= 0) {
+  if (!Number.isFinite(bytes) || bytes <= 0) {  
     return "0 B";
   }
 
@@ -170,7 +171,7 @@ dropzone.addEventListener("drop", (event) => {
   handleSelection(event.dataTransfer.files);
 });
 
-const compressFile = (item, profile) =>
+const compressFile = (item, profile, optimizeStructure) =>
   new Promise((resolve) => {
     const channel = new MessageChannel();
 
@@ -189,6 +190,7 @@ const compressFile = (item, profile) =>
             name: item.file.name,
             buffer,
             profile,
+            optimizeStructure,
           },
           [buffer, channel.port2]
         );
@@ -207,6 +209,7 @@ compressButton.addEventListener("click", async () => {
   renderFiles();
 
   const profile = profileSelect.value;
+  const optimizeStructure = structureToggle.checked;
 
   for (const item of state.files) {
     if (item.file.type !== "application/pdf") {
@@ -217,12 +220,14 @@ compressButton.addEventListener("click", async () => {
     markItem(item.id, {
       statusLabel: "压缩中",
       tone: "processing",
-      message: `Ghostscript WASM 正在处理，使用 ${profile} 档位。`,
+      message: optimizeStructure
+        ? `Ghostscript 压缩后将执行 QPDF 结构优化，使用 ${profile} 档位。`
+        : `Ghostscript WASM 正在处理，使用 ${profile} 档位。`,
       resultBytes: 0,
       outputName: "",
     });
 
-    const result = await compressFile(item, profile);
+    const result = await compressFile(item, profile, optimizeStructure);
 
     if (!result.ok) {
       markItem(item.id, {
@@ -258,8 +263,12 @@ worker.addEventListener("message", (event) => {
 
   if (event.data.ready) {
     setEngineStatus("引擎已就绪", "ready");
+    structureToggle.disabled = false;
+    structureToggle.closest(".checkbox-field")?.classList.remove("disabled-field");
   } else {
     setEngineStatus(event.data.message, event.data.loading ? "" : "error");
+    structureToggle.disabled = true;
+    structureToggle.closest(".checkbox-field")?.classList.add("disabled-field");
   }
 
   renderFiles();

@@ -1,5 +1,7 @@
 import loadGhostscript from "@okathira/ghostpdl-wasm";
 import ghostscriptWasmUrl from "@okathira/ghostpdl-wasm/gs.wasm?url";
+import loadQpdf from "@neslinesli93/qpdf-wasm";
+import qpdfWasmUrl from "@neslinesli93/qpdf-wasm/dist/qpdf.wasm?url";
 
 const profiles = {
   balanced: "/ebook",
@@ -7,7 +9,8 @@ const profiles = {
   archive: "/printer",
 };
 
-let modulePromise;
+let ghostscriptModulePromise;
+let qpdfModulePromise;
 let activeLogs = null;
 
 self.postMessage({
@@ -27,15 +30,27 @@ const postEngineStatus = (ready, message, loading = false) => {
 };
 
 const getModule = async () => {
-  if (!modulePromise) {
-    modulePromise = loadGhostscript({
+  if (!ghostscriptModulePromise) {
+    ghostscriptModulePromise = loadGhostscript({
       locateFile: (path) => (path.endsWith("gs.wasm") ? ghostscriptWasmUrl : path),
       print: (line) => activeLogs?.push(line),
       printErr: (line) => activeLogs?.push(line),
     });
   }
 
-  return modulePromise;
+  return ghostscriptModulePromise;
+};
+
+const getQpdfModule = async () => {
+  if (!qpdfModulePromise) {
+    qpdfModulePromise = loadQpdf({
+      locateFile: (path) => (path.endsWith("qpdf.wasm") ? qpdfWasmUrl : path),
+      print: (line) => activeLogs?.push(line),
+      printErr: (line) => activeLogs?.push(line),
+    });
+  }
+
+  return qpdfModulePromise;
 };
 
 const removeFile = (fs, path) => {
@@ -46,12 +61,50 @@ const removeFile = (fs, path) => {
   }
 };
 
-const buildOutputName = (name, profile) => {
-  const baseName = name.replace(/\.pdf$/i, "");
-  return `${baseName}.${profile}.pdf`;
+const toTransferableBuffer = (bytes) => {
+  if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength) {
+    return bytes.buffer;
+  }
+
+  return bytes.slice().buffer;
 };
 
-const compressPdf = async ({ id, name, buffer, profile }) => {
+const buildOutputName = (name, profile, optimizeStructure) => {
+  const baseName = name.replace(/\.pdf$/i, "");
+  return `${baseName}.${profile}${optimizeStructure ? ".qpdf" : ""}.pdf`;
+};
+
+const optimizePdfStructure = async ({ id, buffer }) => {
+  const qpdf = await getQpdfModule();
+  const inputPath = `/qpdf-input-${id}.pdf`;
+  const outputPath = `/qpdf-output-${id}.pdf`;
+
+  removeFile(qpdf.FS, inputPath);
+  removeFile(qpdf.FS, outputPath);
+  qpdf.FS.writeFile(inputPath, new Uint8Array(buffer));
+
+  const exitCode = qpdf.callMain([
+    "--object-streams=generate",
+    "--compress-streams=y",
+    "--decode-level=generalized",
+    "--recompress-flate",
+    "--compression-level=9",
+    inputPath,
+    outputPath,
+  ]);
+
+  if (exitCode !== 0) {
+    const lastLog = activeLogs.slice(-4).join(" ");
+    throw new Error(lastLog || `QPDF 退出码 ${exitCode}`);
+  }
+
+  const output = qpdf.FS.readFile(outputPath);
+  removeFile(qpdf.FS, inputPath);
+  removeFile(qpdf.FS, outputPath);
+  return toTransferableBuffer(output);
+};
+
+const compressPdf = async ({ id, name, buffer, profile, optimizeStructure }) => {
   const Module = await getModule();
   const inputPath = `/input-${id}.pdf`;
   const outputPath = `/output-${id}.pdf`;
@@ -82,17 +135,25 @@ const compressPdf = async ({ id, name, buffer, profile }) => {
     throw new Error(lastLog || `Ghostscript 退出码 ${exitCode}`);
   }
 
-  const output = Module.FS.readFile(outputPath, { encoding: "binary" });
+  const ghostscriptOutput = Module.FS.readFile(outputPath, { encoding: "binary" });
   removeFile(Module.FS, inputPath);
   removeFile(Module.FS, outputPath);
+
+  const ghostscriptOutputBuffer = toTransferableBuffer(ghostscriptOutput);
+  const outputBuffer = optimizeStructure
+    ? await optimizePdfStructure({ id, buffer: ghostscriptOutputBuffer })
+    : ghostscriptOutputBuffer;
+
   activeLogs = null;
 
   return {
     ok: true,
     id,
-    buffer: output.buffer,
-    outputName: buildOutputName(name, profile),
-    message: "压缩完成，文件已在浏览器本地生成。",
+    buffer: outputBuffer,
+    outputName: buildOutputName(name, profile, optimizeStructure),
+    message: optimizeStructure
+      ? "压缩完成，并已通过 QPDF 重写 PDF 结构。"
+      : "压缩完成，文件已在浏览器本地生成。",
   };
 };
 

@@ -30,7 +30,7 @@
             <span>文档不上传</span>
             <span>批量队列</span>
             <span>Worker 隔离</span>
-            <span>WASM 预留</span>
+            <span>QPDF 优化</span>
           </div>
         </div>
 
@@ -43,7 +43,7 @@
             <li>QPDF WASM 结构优化</li>
             <li>浏览器生成下载文件</li>
           </ol>
-          <p class="panel-footnote">当前版本已接入 Ghostscript WASM。QPDF 结构优化仍作为下一步能力预留。</p>
+          <p class="panel-footnote">当前版本已接入 Ghostscript WASM 与 QPDF WASM，压缩与结构重写都在本地完成。</p>
         </aside>
       </header>
 
@@ -75,7 +75,7 @@
 
             <label class="checkbox-field disabled-field">
               <input id="structure-toggle" type="checkbox" disabled />
-              <span>启用 PDF 结构优化（QPDF WASM，后续接入）</span>
+              <span>启用 PDF 结构优化（QPDF WASM）</span>
             </label>
 
             <button class="primary-button" id="compress-button" type="button">
@@ -102,7 +102,7 @@
           <div class="future-list">
             <article class="future-item active">
               <strong>PDF 压缩</strong>
-              <p>首屏主功能，已接入批量队列、Worker 通信和 Ghostscript WASM。</p>
+              <p>首屏主功能，已接入批量队列、Ghostscript WASM 和 QPDF WASM。</p>
             </article>
             <article class="future-item">
               <strong>PPTX 压缩</strong>
@@ -121,7 +121,7 @@
           <div class="privacy-note">
             <p class="privacy-title">本地处理说明</p>
             <p>
-              这个版本不会把文件上传到服务器。真正接入 WASM 后，压缩计算仍然留在浏览器端完成。
+              这个版本不会把文件上传到服务器。Ghostscript 和 QPDF 都在浏览器端的 Worker 中运行。
             </p>
           </div>
         </section>
