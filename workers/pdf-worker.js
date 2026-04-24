@@ -351,7 +351,7 @@ const ensureJpegContentType = async (zip) => {
   }
 
   const original = await contentTypes.async("string");
-  if (/Extension="jpe?g"/i.test(original)) {
+  if (/Extension="jpg"/i.test(original)) {
     return;
   }
 
