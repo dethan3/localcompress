@@ -59,7 +59,11 @@ const imageProfiles = {
 
 let ghostscriptModulePromise;
 let qpdfModulePromise;
-let activeLogs = null;
+let currentLogCollector = null;
+
+const setLogCollector = (collector) => {
+  currentLogCollector = collector;
+};
 
 self.postMessage({
   type: "engine-status",
@@ -81,8 +85,8 @@ const getModule = async () => {
   if (!ghostscriptModulePromise) {
     ghostscriptModulePromise = loadGhostscript({
       locateFile: (path) => (path.endsWith("gs.wasm") ? ghostscriptWasmUrl : path),
-      print: (line) => activeLogs?.push(line),
-      printErr: (line) => activeLogs?.push(line),
+      print: (line) => currentLogCollector?.push(line),
+      printErr: (line) => currentLogCollector?.push(line),
     });
   }
 
@@ -98,8 +102,8 @@ const getQpdfModule = async () => {
   if (!qpdfModulePromise) {
     qpdfModulePromise = loadQpdf({
       locateFile: (path) => (path.endsWith("qpdf.wasm") ? qpdfWasmUrl : path),
-      print: (line) => activeLogs?.push(line),
-      printErr: (line) => activeLogs?.push(line),
+      print: (line) => currentLogCollector?.push(line),
+      printErr: (line) => currentLogCollector?.push(line),
     });
   }
 
@@ -158,7 +162,7 @@ const optimizePdfStructure = async ({ id, buffer }) => {
   ]);
 
   if (exitCode !== 0) {
-    const lastLog = activeLogs.slice(-4).join(" ");
+    const lastLog = currentLogCollector?.slice(-4).join(" ");
     throw new Error(lastLog || `QPDF 退出码 ${exitCode}`);
   }
 
@@ -177,7 +181,6 @@ const compressPdf = async ({ id, name, buffer, profile, optimizeStructure }) => 
   removeFile(Module.FS, inputPath);
   removeFile(Module.FS, outputPath);
 
-  activeLogs = [];
   Module.FS.writeFile(inputPath, new Uint8Array(buffer));
 
   const exitCode = Module.callMain([
@@ -195,7 +198,7 @@ const compressPdf = async ({ id, name, buffer, profile, optimizeStructure }) => 
   ]);
 
   if (exitCode !== 0) {
-    const lastLog = activeLogs.slice(-4).join(" ");
+    const lastLog = currentLogCollector?.slice(-4).join(" ");
     throw new Error(lastLog || `Ghostscript 退出码 ${exitCode}`);
   }
 
@@ -207,8 +210,6 @@ const compressPdf = async ({ id, name, buffer, profile, optimizeStructure }) => 
   const outputBuffer = optimizeStructure
     ? await optimizePdfStructure({ id, buffer: ghostscriptOutputBuffer })
     : ghostscriptOutputBuffer;
-
-  activeLogs = null;
 
   return {
     ok: true,
@@ -523,7 +524,7 @@ const compressOffice = async ({ id, name, buffer, profile, kind }) => {
         optimizedImages += 1;
       }
     } catch (error) {
-      activeLogs?.push(
+      currentLogCollector?.push(
         `${entry.name}: ${error instanceof Error ? error.message : "图片重压缩失败"}`
       );
     }
@@ -578,7 +579,8 @@ self.addEventListener("message", async (event) => {
   }
 
   try {
-    activeLogs = [];
+    const logs = [];
+    setLogCollector(logs);
     const result =
       message.type === "compress-office" ? await compressOffice(message) : await compressPdf(message);
     port.postMessage(result, result.ok ? [result.buffer] : []);
@@ -589,6 +591,6 @@ self.addEventListener("message", async (event) => {
       error: error instanceof Error ? error.message : "压缩 Worker 执行失败。",
     });
   } finally {
-    activeLogs = null;
+    setLogCollector(null);
   }
 });
