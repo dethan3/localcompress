@@ -10,10 +10,25 @@ const profiles = {
   archive: "/printer",
 };
 
-const pptxProfiles = {
-  balanced: { quality: 0.62, maxDimension: 1600 },
-  strong: { quality: 0.42, maxDimension: 1280 },
-  archive: { quality: 0.78, maxDimension: 2200 },
+const imageProfiles = {
+  balanced: {
+    quality: 62,
+    maxDimension: 1600,
+    allowScale: true,
+    pngStrategy: "oxipng-then-jpeg",
+  },
+  strong: {
+    quality: 42,
+    maxDimension: 1280,
+    allowScale: true,
+    pngStrategy: "direct-jpeg",
+  },
+  archive: {
+    quality: 78,
+    maxDimension: Infinity,
+    allowScale: false,
+    pngStrategy: "oxipng-only",
+  },
 };
 
 let ghostscriptModulePromise;
@@ -201,32 +216,49 @@ const recompressImage = async (bytes, path, profile) => {
     return null;
   }
 
-  const settings = pptxProfiles[profile] ?? pptxProfiles.balanced;
+  const settings = imageProfiles[profile] ?? imageProfiles.balanced;
   const isPng = path.toLowerCase().endsWith(".png");
-  const sourceMime = isPng ? "image/png" : "image/jpeg";
 
   // 1. Decode to bitmap
-  const imageBlob = new Blob([bytes], { type: sourceMime });
-  const bitmap = await createImageBitmap(imageBlob);
+  const bitmap = await createImageBitmap(
+    new Blob([bytes], { type: isPng ? "image/png" : "image/jpeg" })
+  );
 
-  // 2. Scale and draw to canvas
-  const scale = Math.min(1, settings.maxDimension / Math.max(bitmap.width, bitmap.height));
+  // 2. Scale (Archive 档 allowScale=false，跳过缩放)
+  const shouldScale =
+    settings.allowScale && settings.maxDimension < Math.max(bitmap.width, bitmap.height);
+  const scale = shouldScale
+    ? Math.min(1, settings.maxDimension / Math.max(bitmap.width, bitmap.height))
+    : 1;
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
+
   const canvas = new OffscreenCanvas(width, height);
   const context = canvas.getContext("2d", { alpha: false });
-
   context.fillStyle = "#fff";
   context.fillRect(0, 0, width, height);
   context.drawImage(bitmap, 0, 0, width, height);
   bitmap.close?.();
 
-  // 3. Extract ImageData for WASM encoders
   const imageData = context.getImageData(0, 0, width, height);
 
-  // 4. Encode
+  // 3. Encode by strategy
   if (isPng) {
-    // 4a. Try lossless PNG optimisation first
+    // Strong: 直接转 JPEG，最小体积
+    if (settings.pngStrategy === "direct-jpeg") {
+      const { encode: encodeJpeg } = await import("@jsquash/jpeg");
+      const jpegBytes = await encodeJpeg(imageData, {
+        quality: settings.quality,
+        progressive: true,
+        optimize_coding: true,
+        trellis_multipass: true,
+      });
+      return jpegBytes.byteLength < bytes.byteLength
+        ? { bytes: jpegBytes, converted: true }
+        : null;
+    }
+
+    // Balanced / Archive: 先尝试 OxiPNG 无损优化
     const { optimise: optimisePng } = await import("@jsquash/oxipng");
     const pngBytes = await optimisePng(imageData, {
       level: 2,
@@ -238,32 +270,35 @@ const recompressImage = async (bytes, path, profile) => {
       return { bytes: pngBytes, converted: false };
     }
 
-    // 4b. Fallback to MozJPEG if PNG is still too large
+    // Archive: 只保留无损优化，不转 JPEG
+    if (settings.pngStrategy === "oxipng-only") {
+      return null;
+    }
+
+    // Balanced: fallback 到 MozJPEG
     const { encode: encodeJpeg } = await import("@jsquash/jpeg");
     const jpegBytes = await encodeJpeg(imageData, {
-      quality: Math.round(settings.quality * 100),
+      quality: settings.quality,
       progressive: true,
       optimize_coding: true,
       trellis_multipass: true,
     });
-
     return jpegBytes.byteLength < bytes.byteLength
       ? { bytes: jpegBytes, converted: true }
       : null;
-  } else {
-    // JPEG re-encode with MozJPEG
-    const { encode: encodeJpeg } = await import("@jsquash/jpeg");
-    const jpegBytes = await encodeJpeg(imageData, {
-      quality: Math.round(settings.quality * 100),
-      progressive: true,
-      optimize_coding: true,
-      trellis_multipass: true,
-    });
-
-    return jpegBytes.byteLength < bytes.byteLength
-      ? { bytes: jpegBytes, converted: false }
-      : null;
   }
+
+  // JPEG re-encode with MozJPEG
+  const { encode: encodeJpeg } = await import("@jsquash/jpeg");
+  const jpegBytes = await encodeJpeg(imageData, {
+    quality: settings.quality,
+    progressive: true,
+    optimize_coding: true,
+    trellis_multipass: true,
+  });
+  return jpegBytes.byteLength < bytes.byteLength
+    ? { bytes: jpegBytes, converted: false }
+    : null;
 };
 
 const replaceZipTextReferences = async (zip, fromPath, toPath) => {
