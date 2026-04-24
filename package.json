@@ -1,0 +1,20 @@
+{
+  "name": "localcompress",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "wrangler pages dev dist",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name localcompress",
+    "check": "node --check app.js && node --check workers/pdf-worker.js && vite build"
+  },
+  "devDependencies": {
+    "vite": "^8.0.10",
+    "wrangler": "^4.42.1"
+  },
+  "dependencies": {
+    "@okathira/ghostpdl-wasm": "^1.1.0"
+  }
+}
