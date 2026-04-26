@@ -261,6 +261,10 @@ profileOptions.forEach((option) => {
       nextIndex = (currentIndex + 1) % profileOptions.length;
     } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       nextIndex = (currentIndex - 1 + profileOptions.length) % profileOptions.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = profileOptions.length - 1;
     } else {
       return;
     }

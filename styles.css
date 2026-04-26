@@ -454,7 +454,7 @@ h1 {
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }
@@ -604,15 +604,12 @@ select {
   transform: translateY(-1px);
 }
 
-.primary-button[disabled],
 .primary-button:disabled,
-.primary-button:not(:enabled),
-.primary-button:not(:enabled):hover,
 .primary-button:disabled:hover {
-  background: #e8edf2 !important;
-  color: #7f8794 !important;
-  box-shadow: none !important;
-  opacity: 1 !important;
+  background: #e8edf2;
+  color: #7f8794;
+  box-shadow: none;
+  opacity: 1;
   cursor: not-allowed;
   transform: none;
 }
