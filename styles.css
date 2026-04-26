@@ -955,11 +955,9 @@ select {
   }
 
   .mobile-brand {
+    align-items: flex-start;
+    flex-direction: column;
     padding-top: 8px;
-  }
-
-  .mobile-brand .status-chip {
-    display: none;
   }
 
   .brand-mark {

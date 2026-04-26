@@ -26,6 +26,7 @@ const profileOptions = Array.from(document.querySelectorAll(".profile-option"));
 const structureToggle = document.querySelector("#structure-toggle");
 const compressButton = document.querySelector("#compress-button");
 const engineStatus = document.querySelector("#engine-status");
+const mobileEngineStatus = document.querySelector("#mobile-engine-status");
 const rowTemplate = document.querySelector("#file-row-template");
 
 const setStructureToggleEnabled = (enabled) => {
@@ -75,8 +76,14 @@ const formatBytes = (bytes) => {
 };
 
 const setEngineStatus = (label, tone = "") => {
-  engineStatus.textContent = label;
-  engineStatus.className = `status-chip${tone ? ` ${tone}` : ""}`;
+  [engineStatus, mobileEngineStatus].forEach((node) => {
+    if (!node) {
+      return;
+    }
+
+    node.textContent = label;
+    node.className = `status-chip${tone ? ` ${tone}` : ""}`;
+  });
 };
 
 const syncProfileOptions = (value) => {
