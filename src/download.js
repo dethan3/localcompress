@@ -1,18 +1,3 @@
-import { fileKinds } from "./config.js";
-import { getKindConfig } from "./utils.js";
-
-export const getPickerTypes = (item) => {
-  const config = getKindConfig(item.kind) ?? fileKinds.pdf;
-  return [
-    {
-      description: config.pickerDescription,
-      accept: {
-        [config.mime]: [config.extension],
-      },
-    },
-  ];
-};
-
 export const fallbackDownload = (blob, filename) => {
   const downloadUrl = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -27,16 +12,5 @@ export const fallbackDownload = (blob, filename) => {
 };
 
 export const saveBlob = async (item) => {
-  if (!("showSaveFilePicker" in window)) {
-    fallbackDownload(item.outputBlob, item.outputName);
-    return;
-  }
-
-  const handle = await window.showSaveFilePicker({
-    suggestedName: item.outputName,
-    types: getPickerTypes(item),
-  });
-  const writable = await handle.createWritable();
-  await writable.write(item.outputBlob);
-  await writable.close();
+  fallbackDownload(item.outputBlob, item.outputName);
 };
