@@ -50,7 +50,7 @@ npm run dev
 
 ## 部署
 
-项目已配置为 Cloudflare Pages 静态站点。一键部署：
+项目已配置为 Cloudflare Pages 静态站点。一键部署，第一次部署，解析生效需要等些时间。
 
 ```bash
 npm run deploy
